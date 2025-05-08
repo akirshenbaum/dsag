@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Mac system files
+.DS_Store
+
+# Excel, CSV, and HTML files (except sample_data.xlsx)
+*.xlsx
+!sample_data.xlsx
+*.csv
+*.html
+~$* 
