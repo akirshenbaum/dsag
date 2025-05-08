@@ -75,6 +75,19 @@ uploaded_file = st.sidebar.file_uploader(
     "Upload an Excel file", type=["xlsx", "xls"], key=f"file_uploader_{st.session_state['uploader_key']}"
 )
 
+# --- Sidebar Instructions (moved here) ---
+with st.sidebar.expander("How to download cost data from SAP BTP Cockpit?"):
+    st.markdown('''
+    1. Log in to your SAP BTP Cockpit.
+    2. Navigate to your Global Account.
+    3. Go to the **Cost & Usage** section.
+    4. Select the desired time period and filters.
+    5. Click on **Export** or **Download** to get the Excel file.
+    6. Save the file and upload it here using the uploader above.
+    
+    _For best results, use the default export format and do not modify the file structure._
+    ''')
+
 if uploaded_file is not None:
     excel_path = uploaded_file
     excel_engine = 'openpyxl'
@@ -126,6 +139,32 @@ if 'Service Name' in df_main.columns:
 # --- Sidebar Filters ---
 st.sidebar.header("Filters")
 
+# Exclude subaccounts
+all_subaccounts = sorted(df_main['Subaccount Name'].astype(str).unique())
+exclude_subaccounts = st.sidebar.multiselect(
+    "Exclude Subaccounts",
+    options=all_subaccounts,
+    help="Select subaccounts to exclude from all analysis",
+    key="exclude_subaccounts"
+)
+
+# Exclude directories (if available)
+directory_col = None
+for col in df_main.columns:
+    if 'directory' in col.lower():
+        directory_col = col
+        break
+if directory_col:
+    all_directories = sorted(df_main[directory_col].astype(str).unique())
+    exclude_directories = st.sidebar.multiselect(
+        "Exclude Directories",
+        options=all_directories,
+        help="Select directories to exclude from all analysis",
+        key="exclude_directories"
+    )
+else:
+    exclude_directories = []
+
 # Date selection options
 date_option = st.sidebar.radio(
     "Select Date Range Type",
@@ -153,15 +192,21 @@ else:
 
 filtered_df = df_main[(df_main['Start Date'] >= start_date) & (df_main['Start Date'] <= end_date)]
 
-# Subaccount filter
-all_subaccounts = ['All'] + sorted(filtered_df['Subaccount Name'].astype(str).unique())
-selected_subaccount = st.sidebar.selectbox("Select Subaccount", all_subaccounts)
+# Apply exclusion filters to filtered_df
+if exclude_subaccounts:
+    filtered_df = filtered_df[~filtered_df['Subaccount Name'].astype(str).isin(exclude_subaccounts)]
+if directory_col and exclude_directories:
+    filtered_df = filtered_df[~filtered_df[directory_col].astype(str).isin(exclude_directories)]
+
+# Subaccount filter (mutually exclusive logic)
+all_subaccounts_select = ['All'] + [s for s in all_subaccounts if s not in exclude_subaccounts]
+selected_subaccount = st.sidebar.selectbox("Select Subaccount", all_subaccounts_select, key="select_subaccount")
 if selected_subaccount != 'All':
     filtered_df = filtered_df[filtered_df['Subaccount Name'].astype(str) == selected_subaccount]
 
 # Service filter
 all_services = ['All'] + sorted(filtered_df['Service Name'].astype(str).unique())
-selected_service = st.sidebar.selectbox("Select Service", all_services)
+selected_service = st.sidebar.selectbox("Select Service", all_services, key="select_service")
 if selected_service != 'All':
     filtered_df = filtered_df[filtered_df['Service Name'].astype(str) == selected_service]
 
